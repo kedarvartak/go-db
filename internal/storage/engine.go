@@ -1,14 +1,17 @@
 package storage
 
 import (
+	"errors"
 	"os"
 )
 
 type Database struct {
-	Path     string
-	File     *os.File
-	PageSize uint16 // 4kb
-	Cache    *Cache
+	Path          string
+	File          *os.File
+	PageSize      uint16 // 4kb
+	Cache         *Cache
+	Tables        map[string]*Table
+	RecordManager *RecordManager
 }
 
 // Page is the smallest unit of storage in the database. Data is stored in pages (fixed size blocks) rather than one continuous block.
@@ -25,6 +28,7 @@ func NewDatabase(path string) (*Database, error) {
 		Path:     path,
 		PageSize: 4096,           // Standard page size 4kb
 		Cache:    NewCache(1000), // LRU cache with 1000 pages
+		Tables:   make(map[string]*Table),
 	}
 
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
@@ -32,6 +36,7 @@ func NewDatabase(path string) (*Database, error) {
 		return nil, err
 	}
 	db.File = file
+	db.RecordManager = NewRecordManager(db)
 	return db, nil
 }
 
@@ -75,4 +80,32 @@ func (db *Database) getNextPageID() uint64 {
 		return 0
 	}
 	return uint64(fileInfo.Size() / int64(db.PageSize))
+}
+
+func (db *Database) CreateTable(name string, columns []Column) error {
+	if _, exists := db.Tables[name]; exists {
+		return errors.New("table already exists")
+	}
+
+	table := NewTable(name, columns)
+	db.Tables[name] = table
+	return nil
+}
+
+func (db *Database) GetPage(pageID uint64) (*Page, error) {
+	// First, try to get the page from cache
+	if page, found := db.Cache.Get(pageID); found {
+		return page, nil
+	}
+
+	// If not in cache, read from disk
+	page, err := db.readPage(pageID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add to cache for future use
+	db.Cache.Put(page)
+
+	return page, nil
 }
