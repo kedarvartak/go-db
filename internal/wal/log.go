@@ -4,6 +4,14 @@ import (
 	"os"
 )
 
+// gonna implement this last to the project
+
+// WAL - Write Ahead Logging. Crucial component for database durability and crash recovery.
+// log entry records operations that have been committed.
+// log type is used to identify the type of operation.
+// Before any database change, we first write to WAL
+// Each entry has a sequence number for ordering
+// If the database crashes, we can replay the WAL to recover
 type LogEntry struct {
 	Sequence uint64
 	Type     LogType
@@ -34,7 +42,7 @@ func (w *WAL) Write(data []byte) error {
 		Data:     data,
 	}
 	w.Sequence++
-	// TODO: Implement actual writing to log file
+
 	_ = entry
 	return nil
 }
