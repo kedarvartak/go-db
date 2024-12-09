@@ -42,7 +42,7 @@ func (w *WAL) Write(data []byte) error {
 		Data:     data,
 	}
 	w.Sequence++
-
+	// TODO: Implement actual writing to log file
 	_ = entry
 	return nil
 }
